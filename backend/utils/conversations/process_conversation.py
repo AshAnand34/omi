@@ -130,8 +130,10 @@ def get_default_conversation_summarized_apps():
     return default_apps
 
 def _trigger_apps(uid: str, conversation: Conversation, is_reprocess: bool = False, app_id: Optional[str] = None):
+    print(f"Triggering apps for conversation {conversation.id} (source= {conversation.source}), app_id={conversation.app_id}")
     apps: List[App] = get_available_apps(uid)
     conversation_apps = [app for app in apps if app.works_with_memories() and app.enabled]
+    print(f"User-enabled apps: {[app.id for app in conversation_apps]}")
     filtered_apps = []
 
     # If app_id is provided, only use that specific app
@@ -143,6 +145,14 @@ def _trigger_apps(uid: str, conversation: Conversation, is_reprocess: bool = Fal
         # Extend with default apps
         default_apps = get_default_conversation_summarized_apps()
         filtered_apps.extend(default_apps)
+
+        # --- Ensure default apps are enabled for the user ---
+        user_enabled = set(redis_db.get_enabled_plugins(uid))
+        for app in default_apps:
+            if app.id not in user_enabled:
+                print(f"Enabling default app {app.id} for user {uid}")
+                redis_db.enable_app(uid, app.id)
+        # --- End ensure ---
 
         # Select the best app for this conversation
         if filtered_apps and len(filtered_apps) > 0:
@@ -165,7 +175,9 @@ def _trigger_apps(uid: str, conversation: Conversation, is_reprocess: bool = Fal
 
     if len(filtered_apps) == 0:
         print("All apps had got filtered out", uid)
-
+    else:
+        print(f"Apps to be executed: {[app.id for app in filtered_apps]}")
+    
     # Clear existing app results
     conversation.apps_results = []
 
@@ -214,7 +226,7 @@ def _extract_memories(uid: str, conversation: Conversation):
     memories_db.save_memories(uid, [fact.dict() for fact in parsed_memories])
 
 
-def send_new_memories_notification(token: str, memories: [MemoryDB]):
+def send_new_memories_notification(token: str, memories: list[MemoryDB]):
     memories_str = ", ".join([memory.content for memory in memories])
     message = f"New memories {memories_str}"
     ai_message = NotificationMessage(
@@ -304,7 +316,7 @@ def process_conversation(
     return conversation
 
 
-def process_user_emotion(uid: str, language_code: str, conversation: Conversation, urls: [str]):
+def process_user_emotion(uid: str, language_code: str, conversation: Conversation, urls: list[str]):
     print('process_user_emotion conversation.id=', conversation.id)
 
     # save task
