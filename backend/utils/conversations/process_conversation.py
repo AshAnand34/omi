@@ -175,6 +175,10 @@ def _trigger_apps(uid: str, conversation: Conversation, is_reprocess: bool = Fal
 
     if len(filtered_apps) == 0:
         print("All apps had got filtered out", uid)
+        print(f"Debug info: conversation source={conversation.source}, app_id={conversation.app_id}, user_enabled={[app.id for app in conversation_apps]}")
+        print(f"Default summarizer/action apps: {[app.id for app in get_default_conversation_summarized_apps()]}")
+        print(f"Filtered apps attempted: {[app.id for app in filtered_apps]}")
+        print(f"Possible reasons: No apps enabled for user, app capability mismatch, or filtering logic too strict for this conversation type.")
     else:
         print(f"Apps to be executed: {[app.id for app in filtered_apps]}")
     
